@@ -9,6 +9,7 @@ import (
 
 func main() {
 	r := gin.Default()
+	//设置路由
 	router.InitRouter(r)
 	gc := router.RegisterGrpc()
 	stop := func() {
