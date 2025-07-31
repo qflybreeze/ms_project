@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func Run(r *gin.Engine, server_name string, addr string) {
+func Run(r *gin.Engine, server_name string, addr string, stop func()) {
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: r,
@@ -35,6 +35,10 @@ func Run(r *gin.Engine, server_name string, addr string) {
 	ctx, cancel_ := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel_()
 
+	if stop != nil {
+		stop()
+	}
+	//优雅关闭
 	shutdownCh := make(chan error, 1)
 	go func() {
 		shutdownCh <- srv.Shutdown(ctx)

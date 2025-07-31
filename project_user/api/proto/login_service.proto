@@ -1,0 +1,15 @@
+syntax="proto3";
+package login_service_v1;
+option go_package = "project_user/pkg/service/login_service_v1";
+
+message CaptchaMessage {
+  string mobile = 1;
+}
+
+message CapchaResponse {
+
+}
+
+service LoginService {
+  rpc GetCapcha(CaptchaMessage) returns (CapchaResponse){}
+}

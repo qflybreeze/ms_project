@@ -14,3 +14,6 @@ redis:
   password: "1234qwer"
   db: 0
   username: "default"
+grpc:
+    addr: "127.0.0.1:8881"
+    name: user
