@@ -17,7 +17,7 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LoginServiceClient interface {
-	GetCapcha(ctx context.Context, in *CaptchaMessage, opts ...grpc.CallOption) (*CapchaResponse, error)
+	GetCaptcha(ctx context.Context, in *CaptchaMessage, opts ...grpc.CallOption) (*CaptchaResponse, error)
 }
 
 type loginServiceClient struct {
@@ -28,9 +28,9 @@ func NewLoginServiceClient(cc grpc.ClientConnInterface) LoginServiceClient {
 	return &loginServiceClient{cc}
 }
 
-func (c *loginServiceClient) GetCapcha(ctx context.Context, in *CaptchaMessage, opts ...grpc.CallOption) (*CapchaResponse, error) {
-	out := new(CapchaResponse)
-	err := c.cc.Invoke(ctx, "/login_service_v1.LoginService/GetCapcha", in, out, opts...)
+func (c *loginServiceClient) GetCaptcha(ctx context.Context, in *CaptchaMessage, opts ...grpc.CallOption) (*CaptchaResponse, error) {
+	out := new(CaptchaResponse)
+	err := c.cc.Invoke(ctx, "/login_service_v1.LoginService/GetCaptcha", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (c *loginServiceClient) GetCapcha(ctx context.Context, in *CaptchaMessage, 
 // All implementations must embed UnimplementedLoginServiceServer
 // for forward compatibility
 type LoginServiceServer interface {
-	GetCapcha(context.Context, *CaptchaMessage) (*CapchaResponse, error)
+	GetCaptcha(context.Context, *CaptchaMessage) (*CaptchaResponse, error)
 	mustEmbedUnimplementedLoginServiceServer()
 }
 
@@ -49,8 +49,8 @@ type LoginServiceServer interface {
 type UnimplementedLoginServiceServer struct {
 }
 
-func (*UnimplementedLoginServiceServer) GetCapcha(context.Context, *CaptchaMessage) (*CapchaResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetCapcha not implemented")
+func (*UnimplementedLoginServiceServer) GetCaptcha(context.Context, *CaptchaMessage) (*CaptchaResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCaptcha not implemented")
 }
 func (*UnimplementedLoginServiceServer) mustEmbedUnimplementedLoginServiceServer() {}
 
@@ -58,20 +58,20 @@ func RegisterLoginServiceServer(s *grpc.Server, srv LoginServiceServer) {
 	s.RegisterService(&_LoginService_serviceDesc, srv)
 }
 
-func _LoginService_GetCapcha_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _LoginService_GetCaptcha_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CaptchaMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LoginServiceServer).GetCapcha(ctx, in)
+		return srv.(LoginServiceServer).GetCaptcha(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/login_service_v1.LoginService/GetCapcha",
+		FullMethod: "/login_service_v1.LoginService/GetCaptcha",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LoginServiceServer).GetCapcha(ctx, req.(*CaptchaMessage))
+		return srv.(LoginServiceServer).GetCaptcha(ctx, req.(*CaptchaMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -81,8 +81,8 @@ var _LoginService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*LoginServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetCapcha",
-			Handler:    _LoginService_GetCapcha_Handler,
+			MethodName: "GetCaptcha",
+			Handler:    _LoginService_GetCaptcha_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,5 +1,6 @@
 package dao
 
+import "C"
 import (
 	"context"
 	"fmt"
@@ -17,12 +18,11 @@ var Rc *RedisCache
 
 func init() {
 	rdb := redis.NewClient(config.C.ReadRedisConfig())
-
 	pong, err := rdb.Ping(context.Background()).Result()
 	if err != nil {
-		log.Fatal("连接失败：", err)
+		log.Fatal("redis连接失败：", err)
 	}
-	fmt.Println("成功连接:", pong) // 应输出 PONG
+	fmt.Println("redis成功连接:", pong) // 应输出 PONG
 
 	Rc = &RedisCache{
 		rdb: rdb,

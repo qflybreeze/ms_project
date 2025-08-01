@@ -6,10 +6,10 @@ message CaptchaMessage {
   string mobile = 1;
 }
 
-message CapchaResponse {
-
+message CaptchaResponse {
+  string code=1;
 }
 
 service LoginService {
-  rpc GetCapcha(CaptchaMessage) returns (CapchaResponse){}
+  rpc GetCaptcha(CaptchaMessage) returns (CaptchaResponse){}
 }

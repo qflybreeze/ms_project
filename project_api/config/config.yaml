@@ -1,6 +1,6 @@
 server:
-  addr: "127.0.0.1:8080"
-  name: "project_user"
+  addr: "127.0.0.1:80"
+  name: "project_api"
 zap:
   debug_file_name: "D:\\go_project\\ms_project\\logs\\debug\\project-debug.log"
   info_file_name:  "D:\\go_project\\ms_project\\logs\\info\\project-info.log"
@@ -8,12 +8,3 @@ zap:
   max_size:       500,
   max_age:        28,
   max_backups:    3
-redis:
-  host: "auto"
-  port: "6379"
-  password: "1234qwer"
-  db: 0
-  username: "default"
-grpc:
-    addr: "127.0.0.1:8881"
-    name: user

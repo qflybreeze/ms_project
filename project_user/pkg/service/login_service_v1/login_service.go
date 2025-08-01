@@ -2,10 +2,11 @@ package login_service_v1
 
 import (
 	"context"
-	"errors"
 	"go.uber.org/zap"
 	common "go_project/ms_project/project_common"
+	"go_project/ms_project/project_common/errs"
 	"go_project/ms_project/project_user/pkg/dao"
+	"go_project/ms_project/project_user/pkg/model"
 	"go_project/ms_project/project_user/pkg/repo"
 	"log"
 	"time"
@@ -22,12 +23,12 @@ func New() *LoginService {
 	}
 }
 
-func (ls *LoginService) GetCaptcha(ctx context.Context, msg *CaptchaMessage) (*CapchaResponse, error) {
+func (ls *LoginService) GetCaptcha(ctx context.Context, msg *CaptchaMessage) (*CaptchaResponse, error) {
 	//1.获取参数
 	mobile := msg.Mobile
 	//2.校验参数
 	if !common.VerifyMobile(mobile) {
-		return nil, errors.New("手机号不合法")
+		return nil, errs.GrpcError(model.NoLegalMobile)
 	}
 	//3.生成四位或者六位验证码
 	code := "123456"
@@ -44,5 +45,5 @@ func (ls *LoginService) GetCaptcha(ctx context.Context, msg *CaptchaMessage) (*C
 			log.Printf("存储验证码到redis成功，手机号：%s，验证码：%s", mobile, code)
 		}
 	}()
-	return &CapchaResponse{}, nil
+	return &CaptchaResponse{Code: code}, nil
 }
