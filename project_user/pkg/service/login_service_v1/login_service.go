@@ -37,7 +37,7 @@ func (ls *LoginService) GetCaptcha(ctx context.Context, msg *CaptchaMessage) (*C
 		time.Sleep(2 * time.Second)
 		zap.L().Info("短信平台调用成功，发送短信")
 		//5.存储验证码到redis，过期时间为15分钟
-		c, cancel := context.WithTimeout(ctx, 2*time.Second)
+		c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		if err := ls.cache.Put(c, "REGISTER_"+mobile, code, 15*time.Minute); err != nil {
 			log.Printf("存储验证码到redis失败，手机号：%s，错误：%v", mobile, err)

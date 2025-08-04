@@ -29,7 +29,6 @@ type Resolver struct {
 	logger *zap.Logger
 }
 
-// NewResolver create a new resolver.Builder base on etcd
 func NewResolver(etcdAddrs []string, logger *zap.Logger) *Resolver {
 	return &Resolver{
 		schema:      schema,
@@ -39,7 +38,6 @@ func NewResolver(etcdAddrs []string, logger *zap.Logger) *Resolver {
 	}
 }
 
-// Scheme returns the scheme supported by this resolver.
 func (r *Resolver) Scheme() string {
 	return r.schema
 }
@@ -63,7 +61,6 @@ func (r *Resolver) Close() {
 	r.closeCh <- struct{}{}
 }
 
-// start
 func (r *Resolver) start() (chan<- struct{}, error) {
 	var err error
 	r.cli, err = clientv3.New(clientv3.Config{
@@ -107,7 +104,6 @@ func (r *Resolver) watch() {
 	}
 }
 
-// update
 func (r *Resolver) update(events []*clientv3.Event) {
 	for _, ev := range events {
 		var info Server
@@ -138,7 +134,7 @@ func (r *Resolver) update(events []*clientv3.Event) {
 	}
 }
 
-// sync 同步获取所有地址信息
+// 将etcd服务注册或更新到grpc的resolver中
 func (r *Resolver) sync() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

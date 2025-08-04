@@ -12,6 +12,7 @@ func main() {
 	//设置路由
 	router.InitRouter(r)
 	gc := router.RegisterGrpc()
+	router.RegisterEtcdServer()
 	stop := func() {
 		gc.Stop()
 	}

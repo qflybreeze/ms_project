@@ -17,10 +17,10 @@ import (
 var LG *zap.Logger
 
 type LogConfig struct {
-	DebugFileName string `json:"debugFileName"`
-	InfoFileName  string `json:"infoFileName"`
-	WarnFileName  string `json:"warnFileName"`
-	MaxSize       int    `json:"maxsize"`
+	DebugFileName string `json:"debug_file_name"`
+	InfoFileName  string `json:"info_file_name"`
+	WarnFileName  string `json:"warn_file_name"`
+	MaxSize       int    `json:"max_size"`
 	MaxAge        int    `json:"max_age"`
 	MaxBackups    int    `json:"max_backups"`
 }

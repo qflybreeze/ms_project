@@ -1,16 +1,18 @@
 package config
 
 import (
-	"github.com/spf13/viper"
 	"go_project/ms_project/project_common/logs"
 	"log"
 	"os"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	viper *viper.Viper
-	SC    *ServerConfig
-	GC    *GrpcConfig
+	viper      *viper.Viper
+	SC         *ServerConfig
+	GC         *GrpcConfig
+	EtcdConfig *EtcdConfig
 }
 
 var C = InitConfig()
@@ -25,16 +27,22 @@ type GrpcConfig struct {
 	Addr string
 }
 
+type EtcdConfig struct {
+	Addrs []string
+}
+
 func InitConfig() *Config {
 	conf := &Config{viper: viper.New()}
 	workDir, _ := os.Getwd()
-	conf.viper.SetConfigName("config")            // 配置文件名
-	conf.viper.SetConfigType("yaml")              // 配置文件类型
+	conf.viper.SetConfigName("config") // 配置文件名
+	conf.viper.SetConfigType("yaml")   // 配置文件类型
+	conf.viper.AddConfigPath("/etc/ms_project/user")
 	conf.viper.AddConfigPath(workDir + "/config") // 配置文件路径
 	if err := conf.viper.ReadInConfig(); err != nil {
-		log.Fatalln("读取配置文件失败:", err)
+		log.Fatalln("api读取配置文件失败:", err)
 	}
 	conf.ReadServerConfig()
+	conf.ReadEtcdConfig()
 	conf.InitZapLog()
 	return conf
 }
@@ -46,14 +54,24 @@ func (c *Config) ReadServerConfig() {
 	c.SC = sc
 }
 
+func (c *Config) ReadEtcdConfig() {
+	ec := &EtcdConfig{}
+	var addrs []string
+	if err := c.viper.UnmarshalKey("etcd.addrs", &addrs); err != nil {
+		log.Fatalln("读取etcd配置失败:", err)
+	}
+	ec.Addrs = addrs
+	c.EtcdConfig = ec
+}
+
 func (c *Config) InitZapLog() {
 	lc := &logs.LogConfig{
-		DebugFileName: c.viper.GetString("zap.debug_file_name"),
-		InfoFileName:  c.viper.GetString("zap.info_file_name"),
-		WarnFileName:  c.viper.GetString("zap.warn_file_name"),
-		MaxSize:       c.viper.GetInt("max_size"),
-		MaxAge:        c.viper.GetInt("max_age"),
-		MaxBackups:    c.viper.GetInt("max_backups"),
+		DebugFileName: c.viper.GetString("zap.debugFileName"),
+		InfoFileName:  c.viper.GetString("zap.infoFileName"),
+		WarnFileName:  c.viper.GetString("zap.warnFileName"),
+		MaxSize:       c.viper.GetInt("maxSize"),
+		MaxAge:        c.viper.GetInt("maxAge"),
+		MaxBackups:    c.viper.GetInt("maxBackups"),
 	}
 	err := logs.InitLogger(lc)
 	if err != nil {

@@ -14,10 +14,10 @@ type Router interface {
 type RegisterRouter struct {
 }
 
-func (*RegisterRouter) Route(router Router, r *gin.Engine) {
-	router.Route(r)
+func (*RegisterRouter) Route(ro Router, r *gin.Engine) {
+	ro.Route(r)
 }
-func NewRouter() *RegisterRouter {
+func New() *RegisterRouter {
 	return &RegisterRouter{}
 }
 

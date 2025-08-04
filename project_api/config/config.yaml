@@ -2,9 +2,12 @@ server:
   addr: "127.0.0.1:80"
   name: "project_api"
 zap:
-  debug_file_name: "D:\\go_project\\ms_project\\logs\\debug\\project-debug.log"
-  info_file_name:  "D:\\go_project\\ms_project\\logs\\info\\project-info.log"
-  warn_file_name:  "D:\\go_project\\ms_project\\logs\\error\\project-error.log"
-  max_size:       500,
-  max_age:        28,
-  max_backups:    3
+  debugFileName: "D:\\go_project\\ms_project\\logs\\debug\\project-debug.log"
+  infoFileName:  "D:\\go_project\\ms_project\\logs\\info\\project-info.log"
+  warnFileName:  "D:\\go_project\\ms_project\\logs\\error\\project-error.log"
+  maxSize: 500,
+  maxAge: 28,
+  MaxBackups: 3
+etcd:
+  addrs:
+    - "127.0.0.1:2379"

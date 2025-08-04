@@ -1,12 +1,9 @@
 package dao
 
-import "C"
 import (
 	"context"
-	"fmt"
 	"github.com/redis/go-redis/v9"
 	"go_project/ms_project/project_user/config"
-	"log"
 	"time"
 )
 
@@ -18,11 +15,11 @@ var Rc *RedisCache
 
 func init() {
 	rdb := redis.NewClient(config.C.ReadRedisConfig())
-	pong, err := rdb.Ping(context.Background()).Result()
-	if err != nil {
-		log.Fatal("redis连接失败：", err)
-	}
-	fmt.Println("redis成功连接:", pong) // 应输出 PONG
+	//pong, err := rdb.Ping(context.Background()).Result()
+	//if err != nil {
+	//	log.Fatal("redis连接失败：", err)
+	//}
+	//fmt.Println("redis成功连接:", pong) // 应输出 PONG
 
 	Rc = &RedisCache{
 		rdb: rdb,

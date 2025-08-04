@@ -59,6 +59,7 @@ func RegisterGrpc() *grpc.Server {
 		log.Println("gRPC server listen error:", err)
 	}
 	go func() {
+		log.Printf("gRPC server start at %s\n", c.Addr)
 		err := s.Serve(lis)
 		if err != nil {
 			log.Println("gRPC server serve start error:", err)
@@ -72,10 +73,10 @@ func RegisterEtcdServer() {
 	etcdRegister := discovery.NewResolver(config.C.EtcdConfig.Addrs, logs.LG)
 	resolver.Register(etcdRegister)
 	info := discovery.Server{
-		Name:    config.C.GrpcConfig.Name,
-		Addr:    config.C.GrpcConfig.Addr,
-		Version: config.C.GrpcConfig.Version,
-		Weight:  config.C.GrpcConfig.Weight,
+		Name:    config.C.GC.Name,
+		Addr:    config.C.GC.Addr,
+		Version: config.C.GC.Version,
+		Weight:  config.C.GC.Weight,
 	}
 	r := discovery.NewRegister(config.C.EtcdConfig.Addrs, logs.LG)
 	_, err := r.Register(info, 2)
