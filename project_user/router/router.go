@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/resolver"
 	"log"
 	"net"
+	"project_grpc/user/login"
 )
 
 //负责路由注册
@@ -49,7 +50,7 @@ func RegisterGrpc() *grpc.Server {
 	c := gRPCConfig{
 		Addr: config.C.GC.Addr,
 		RegisterFunc: func(g *grpc.Server) {
-			loginServiceV1.RegisterLoginServiceServer(g, loginServiceV1.New())
+			login.RegisterLoginServiceServer(g, loginServiceV1.New())
 		},
 	}
 	s := grpc.NewServer()

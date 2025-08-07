@@ -11,3 +11,24 @@
 {"level":"ERROR","time":"2025-08-04T19:07:09.661+0800","caller":"discovery/resolver.go:101","msg":"sync failed","error":"context deadline exceeded"}
 {"level":"ERROR","time":"2025-08-04T19:08:09.661+0800","caller":"discovery/resolver.go:101","msg":"sync failed","error":"context deadline exceeded"}
 {"level":"ERROR","time":"2025-08-04T19:09:09.660+0800","caller":"discovery/resolver.go:101","msg":"sync failed","error":"context deadline exceeded"}
+{"level":"ERROR","time":"2025-08-06T16:00:18.890+0800","caller":"discovery/discovery.go:117","msg":"register failed","error":"context deadline exceeded"}
+{"level":"ERROR","time":"2025-08-06T16:00:21.894+0800","caller":"discovery/discovery.go:117","msg":"register failed","error":"context deadline exceeded"}
+{"level":"ERROR","time":"2025-08-06T16:04:56.530+0800","caller":"login_service_v1/login_service.go:59","msg":"Register从redis获取验证码失败","error":"redis: nil"}
+{"level":"INFO","time":"2025-08-06T16:16:14.532+0800","caller":"login_service_v1/login_service.go:41","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-06T16:16:40.334+0800","caller":"login_service_v1/login_service.go:41","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-06T16:20:19.506+0800","caller":"login_service_v1/login_service.go:41","msg":"短信平台调用成功，发送短信"}
+{"level":"ERROR","time":"2025-08-06T17:17:55.808+0800","caller":"login_service_v1/login_service.go:59","msg":"Register从redis获取验证码失败","error":"redis: nil"}
+{"level":"INFO","time":"2025-08-06T17:18:06.324+0800","caller":"login_service_v1/login_service.go:41","msg":"短信平台调用成功，发送短信"}
+{"level":"ERROR","time":"2025-08-06T17:36:17.992+0800","caller":"login_service_v1/login_service.go:59","msg":"Register从redis获取验证码失败","error":"redis: nil"}
+{"level":"ERROR","time":"2025-08-06T17:36:20.170+0800","caller":"login_service_v1/login_service.go:59","msg":"Register从redis获取验证码失败","error":"redis: nil"}
+{"level":"ERROR","time":"2025-08-06T17:36:27.443+0800","caller":"login_service_v1/login_service.go:59","msg":"Register从redis获取验证码失败","error":"redis: nil"}
+{"level":"INFO","time":"2025-08-06T17:40:05.719+0800","caller":"login_service_v1/login_service.go:41","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-06T17:40:26.552+0800","caller":"login_service_v1/login_service.go:41","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-07T09:52:37.553+0800","caller":"login_service_v1/login_service.go:46","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-07T09:57:39.408+0800","caller":"login_service_v1/login_service.go:46","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-07T17:28:06.364+0800","caller":"login_service_v1/login_service.go:51","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-07T17:51:54.688+0800","caller":"login_service_v1/login_service.go:51","msg":"短信平台调用成功，发送短信"}
+{"level":"ERROR","time":"2025-08-07T17:58:58.938+0800","caller":"login_service_v1/login_service.go:134","msg":"register SaveOrganization db err","error":"Error 1406 (22001): Data too long for column 'avatar' at row 1"}
+{"level":"INFO","time":"2025-08-07T17:58:59.283+0800","caller":"login_service_v1/login_service.go:51","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-07T17:59:42.264+0800","caller":"login_service_v1/login_service.go:51","msg":"短信平台调用成功，发送短信"}
+{"level":"INFO","time":"2025-08-07T18:07:02.608+0800","caller":"login_service_v1/login_service.go:51","msg":"短信平台调用成功，发送短信"}

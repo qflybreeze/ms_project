@@ -4,5 +4,6 @@ use (
 	./project_common
 	./project_user
 	./project_api
-	./util
+	./project_grpc
+
 )

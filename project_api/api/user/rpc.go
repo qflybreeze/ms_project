@@ -4,14 +4,14 @@ import (
 	"go_project/ms_project/project_api/config"
 	"go_project/ms_project/project_common/discovery"
 	"go_project/ms_project/project_common/logs"
-	loginServiceV1 "go_project/ms_project/project_user/pkg/service/login_service_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
 	"log"
+	"project_grpc/user/login"
 )
 
-var LoginServiceClient loginServiceV1.LoginServiceClient
+var LoginServiceClient login.LoginServiceClient
 
 func InitRpcUserClient() {
 	etcdRegister := discovery.NewResolver(config.C.EtcdConfig.Addrs, logs.LG)
@@ -21,5 +21,5 @@ func InitRpcUserClient() {
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
-	LoginServiceClient = loginServiceV1.NewLoginServiceClient(conn)
+	LoginServiceClient = login.NewLoginServiceClient(conn)
 }
