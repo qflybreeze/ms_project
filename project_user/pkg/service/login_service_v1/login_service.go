@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jinzhu/copier"
-	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
 	common "go_project/ms_project/project_common"
 	"go_project/ms_project/project_common/encrypts"
 	"go_project/ms_project/project_common/errs"
@@ -19,12 +16,17 @@ import (
 	"go_project/ms_project/project_user/internal/data/organization"
 	"go_project/ms_project/project_user/internal/database"
 	"go_project/ms_project/project_user/internal/database/tran"
+	"go_project/ms_project/project_user/internal/interceptor"
 	"go_project/ms_project/project_user/internal/repo"
 	"go_project/ms_project/project_user/pkg/model"
-	"log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jinzhu/copier"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 type LoginService struct {
@@ -45,26 +47,24 @@ func New() *LoginService {
 }
 
 func (ls *LoginService) GetCaptcha(ctx context.Context, msg *login.CaptchaMessage) (*login.CaptchaResponse, error) {
-	//1.获取参数
+	//获取参数
 	mobile := msg.Mobile
-	//2.校验参数
+	//校验参数
 	if !common.VerifyMobile(mobile) {
 		return nil, errs.GrpcError(model.NoLegalMobile)
 	}
-	//3.生成四位或者六位验证码
-	code := "123456"
-	//4.调用短信平台
+	//生成六位随机验证码
+	code := fmt.Sprintf("%06d", rand.Intn(900000)+100000)
+	//同步写入 Redis，确保注册接口能立刻读到验证码
+	c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err := ls.cache.Put(c, model.RegisterRedisKey+mobile, code, 15*time.Minute)
+	if err != nil {
+		zap.L().Error("存储验证码到redis失败", zap.String("mobile", mobile), zap.Error(err))
+		return nil, errs.GrpcError(model.RedisError)
+	}
 	go func() {
-		time.Sleep(2 * time.Second)
-		zap.L().Info("短信平台调用成功，发送短信")
-		//5.存储验证码到redis，过期时间为15分钟
-		c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if err := ls.cache.Put(c, model.RegisterRedisKey+mobile, code, 15*time.Minute); err != nil {
-			log.Printf("存储验证码到redis失败，手机号：%s，错误：%v", mobile, err)
-		} else {
-			log.Printf("存储验证码到redis成功，手机号：%s，验证码：%s", mobile, code)
-		}
+		zap.L().Info("短信平台调用成功，发送短信", zap.String("mobile", mobile))
 	}()
 	return &login.CaptchaResponse{Code: code}, nil
 }
@@ -73,7 +73,7 @@ func (ls *LoginService) Register(ctx context.Context, msg *login.RegisterMessage
 	c := context.Background()
 	//校验验证码
 	redisCode, err := ls.cache.Get(c, model.RegisterRedisKey+msg.Mobile)
-	//TODO redis修正
+
 	if err == redis.Nil {
 		return nil, errs.GrpcError(model.CaptchaNotExist)
 	}
@@ -111,8 +111,12 @@ func (ls *LoginService) Register(ctx context.Context, msg *login.RegisterMessage
 	if exist {
 		return nil, errs.GrpcError(model.MobileExist)
 	}
-	//将数据存入member表
-	pwd := encrypts.Md5(msg.Password)
+	//将数据存入member表，使用 bcrypt 哈希密码
+	pwd, err := encrypts.HashPassword(msg.Password)
+	if err != nil {
+		zap.L().Error("Register bcrypt hash password error", zap.Error(err))
+		return nil, errs.GrpcError(model.DBError)
+	}
 	mem := &member.Member{
 		Account:       msg.Name,
 		Password:      pwd,
@@ -144,21 +148,37 @@ func (ls *LoginService) Register(ctx context.Context, msg *login.RegisterMessage
 		}
 		return nil
 	})
-	//TODO 生成一个账户，账户的授权角色是默认
 	return &login.RegisterResponse{}, err
 }
 
 func (ls *LoginService) Login(ctx context.Context, msg *login.LoginMessage) (*login.LoginResponse, error) {
 	c := context.Background()
-	//从数据库获取用户信息
-	pwd := encrypts.Md5(msg.Password)
-	mem, err := ls.memberRepo.FindMember(c, msg.Account, pwd)
+	// 先通过账号查询用户（不带密码条件，因为 bcrypt 哈希每次不同，无法在 SQL 中比较）
+	mem, err := ls.memberRepo.FindMemberByAccount(c, msg.Account)
 	if err != nil {
 		zap.L().Error("Login向db查询用户信息失败", zap.Error(err))
 		return nil, errs.GrpcError(model.DBError)
 	}
 	if mem == nil {
 		return nil, errs.GrpcError(model.AccountOrPwdError)
+	}
+	//更新密码为bcrypt哈希
+	if isBcryptHash(mem.Password) {
+		if !encrypts.VerifyPassword(msg.Password, mem.Password) {
+			return nil, errs.GrpcError(model.AccountOrPwdError)
+		}
+	} else {
+		if encrypts.Md5(msg.Password) != mem.Password {
+			return nil, errs.GrpcError(model.AccountOrPwdError)
+		}
+		newHash, err := encrypts.HashPassword(msg.Password)
+		if err == nil {
+			if upErr := ls.memberRepo.UpdateMemberPassword(c, mem.Id, newHash); upErr != nil {
+				zap.L().Warn("auto-upgrade password to bcrypt failed", zap.Int64("memberId", mem.Id), zap.Error(upErr))
+			} else {
+				zap.L().Info("password auto-upgraded to bcrypt", zap.Int64("memberId", mem.Id))
+			}
+		}
 	}
 	memMsg := &login.MemberMessage{}
 	err = copier.Copy(memMsg, mem)
@@ -198,14 +218,65 @@ func (ls *LoginService) Login(ctx context.Context, msg *login.LoginMessage) (*lo
 	//member orgs放入缓存
 	go func() {
 		marshal, _ := json.Marshal(mem)
-		ls.cache.Put(c, model.Member+"::"+memIdStr, string(marshal), exp)
+		memKey := model.Member + "::" + memIdStr
+		ls.cache.Put(c, memKey, string(marshal), exp)
 		orgsJson, _ := json.Marshal(orgs)
-		ls.cache.Put(c, model.MemberOrganization+"::"+memIdStr, string(orgsJson), exp)
+		orgKey := model.MemberOrganization + "::" + memIdStr
+		ls.cache.Put(c, orgKey, string(orgsJson), exp)
+		//布隆过滤器放行新用户登录后的请求
+		interceptor.CacheClient.BloomAddKey(memKey)
+		interceptor.CacheClient.BloomAddKey(orgKey)
+
+		req := &login.UserMessage{MemId: mem.Id}
+		if key, ok := interceptor.CacheClient.BuildCacheKey(
+			"/login.service.v1.LoginService/MyOrgList", req); ok {
+			interceptor.CacheClient.BloomAddKey(key)
+		}
+		if key, ok := interceptor.CacheClient.BuildCacheKey(
+			"/login.service.v1.LoginService/FindMemInfoById", req); ok {
+			interceptor.CacheClient.BloomAddKey(key)
+		}
 	}()
 	return &login.LoginResponse{
 		Member:           memMsg,
 		OrganizationList: orgsMessage,
 		TokenList:        tokenList,
+	}, nil
+}
+
+// 用 RefreshToken 换取新的 AccessToken + RefreshToken
+func (ls *LoginService) TokenRefresh(ctx context.Context, msg *login.LoginMessage) (*login.LoginResponse, error) {
+	refreshTokenStr := msg.Token
+	if strings.Contains(refreshTokenStr, "bearer ") {
+		refreshTokenStr = strings.ReplaceAll(refreshTokenStr, "bearer ", "")
+	}
+	// 用 RefreshSecret 解析
+	memIdStr, err := jwts.ParseRefreshToken(refreshTokenStr, config.C.JwtConfig.RefreshSecret)
+	if err != nil {
+		zap.L().Error("TokenRefresh解析refreshToken失败", zap.Error(err))
+		return nil, errs.GrpcError(model.NoLogin)
+	}
+	memberId, _ := strconv.ParseInt(memIdStr, 10, 64)
+
+	// 查询用户是否存在
+	memberById, err := ls.memberRepo.FindMemberById(ctx, memberId)
+	if err != nil || memberById == nil {
+		return nil, errs.GrpcError(model.NoLogin)
+	}
+
+	// 签发新的双 Token（绑定当前请求的 IP）
+	exp := time.Duration(config.C.JwtConfig.AccessExp*3600*24) * time.Second
+	rExp := time.Duration(config.C.JwtConfig.RefreshExp*3600*24) * time.Second
+	newToken := jwts.CreateToken(memIdStr, exp, config.C.JwtConfig.AccessSecret, rExp, config.C.JwtConfig.RefreshSecret, msg.Ip)
+
+	tokenList := &login.TokenMessage{
+		AccessToken:    newToken.AccessToken,
+		RefreshToken:   newToken.RefreshToken,
+		AccessTokenExp: newToken.AccessExp,
+		TokenType:      "bearer",
+	}
+	return &login.LoginResponse{
+		TokenList: tokenList,
 	}, nil
 }
 
@@ -219,40 +290,68 @@ func (ls *LoginService) TokenVerify(ctx context.Context, msg *login.LoginMessage
 		zap.L().Error("TokenVerify解析token失败", zap.Error(err))
 		return nil, errs.GrpcError(model.NoLogin)
 	}
-	//缓存中查询id
-	memJson, err := ls.cache.Get(context.Background(), model.Member+"::"+parseToken)
-	if err != nil {
-		zap.L().Error("TokenVerify从缓存获取用户信息失败", zap.Error(err))
-		return nil, errs.GrpcError(model.NoLogin)
+
+	id, _ := strconv.ParseInt(parseToken, 10, 64)
+	exp := time.Duration(config.C.JwtConfig.AccessExp*3600*24) * time.Second
+
+	// 获取用户信息
+	memKey := model.Member + "::" + parseToken
+	var memberById *member.Member
+
+	memJson, _ := ls.cache.Get(context.Background(), memKey)
+	if memJson != "" {
+		// 缓存命中
+		memberById = &member.Member{}
+		json.Unmarshal([]byte(memJson), memberById)
+	} else {
+		// 缓存未命中，回源 DB
+		zap.L().Warn("TokenVerify member 缓存未命中，回源DB", zap.String("memberId", parseToken))
+		memberById, err = ls.memberRepo.FindMemberById(context.Background(), id)
+		if err != nil {
+			zap.L().Error("TokenVerify从DB查询用户信息失败", zap.Error(err))
+			return nil, errs.GrpcError(model.NoLogin)
+		}
+		// 异步回填缓存和布隆过滤器
+		go func() {
+			if marshal, merr := json.Marshal(memberById); merr == nil {
+				putCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				ls.cache.Put(putCtx, memKey, string(marshal), exp)
+				interceptor.CacheClient.BloomAddKey(memKey)
+			}
+		}()
 	}
-	if memJson == "" {
-		zap.L().Error("TokenVerify缓存中用户信息已过期")
-		return nil, errs.GrpcError(model.NoLogin)
-	}
-	memberById := &member.Member{}
-	json.Unmarshal([]byte(memJson), memberById)
-	//数据库查询id
-	/*id, _ := strconv.ParseInt(parseToken, 10, 64)
-	//memberById, err := ls.memberRepo.FindMemberById(context.Background(), id)
-	//if err != nil {
-	//	zap.L().Error("TokenVerify向db查询用户信息失败", zap.Error(err))
-	//	return nil, errs.GrpcError(model.DBError)
-	}*/
+
 	memMsg := &login.MemberMessage{}
 	copier.Copy(memMsg, memberById)
 	memMsg.Code, _ = encrypts.EncryptInt64(memMsg.Id, model.AESKey)
 
-	orgsJson, err := ls.cache.Get(context.Background(), model.MemberOrganization+"::"+parseToken)
-	if err != nil {
-		zap.L().Error("TokenVerify从缓存获取用户组织信息失败", zap.Error(err))
-		return nil, errs.GrpcError(model.NoLogin)
-	}
-	if orgsJson == "" {
-		zap.L().Error("TokenVerify缓存中用户组织信息已过期")
-		return nil, errs.GrpcError(model.NoLogin)
-	}
+	// 获取组织信息
+	orgKey := model.MemberOrganization + "::" + parseToken
 	var orgs []*organization.Organization
-	json.Unmarshal([]byte(orgsJson), &orgs)
+
+	orgsJson, _ := ls.cache.Get(context.Background(), orgKey)
+	if orgsJson != "" {
+		// 缓存命中
+		json.Unmarshal([]byte(orgsJson), &orgs)
+	} else {
+		// 缓存未命中，回源 DB
+		zap.L().Warn("TokenVerify org 缓存未命中，回源DB", zap.String("memberId", parseToken))
+		orgs, err = ls.organizationRepo.FindOrganizationByMemId(context.Background(), id)
+		if err != nil {
+			zap.L().Error("TokenVerify从DB查询组织信息失败", zap.Error(err))
+			return nil, errs.GrpcError(model.NoLogin)
+		}
+		// 异步回填
+		go func() {
+			if orgJson, oerr := json.Marshal(orgs); oerr == nil {
+				putCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				ls.cache.Put(putCtx, orgKey, string(orgJson), exp)
+				interceptor.CacheClient.BloomAddKey(orgKey)
+			}
+		}()
+	}
 
 	if len(orgs) > 0 {
 		memMsg.OrganizationCode, _ = encrypts.EncryptInt64(orgs[0].Id, model.AESKey)
@@ -321,4 +420,9 @@ func (ls *LoginService) FindMemInfoByIds(ctx context.Context, msg *login.UserMes
 	}
 
 	return &login.MemberMessageList{List: memMsgs}, nil
+}
+
+// bcrypt 哈希固定以 "$2a$" 或 "$2b$" 开头，长度 60 字符
+func isBcryptHash(hash string) bool {
+	return len(hash) == 60 && strings.HasPrefix(hash, "$2")
 }

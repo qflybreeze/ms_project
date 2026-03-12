@@ -6,9 +6,11 @@ import (
 	"go.uber.org/zap"
 	"go_project/ms_project/project_common/encrypts"
 	"go_project/ms_project/project_common/errs"
+	"go_project/ms_project/project_common/kk"
 	"go_project/ms_project/project_common/tms"
 	"go_project/ms_project/project_grpc/task"
 	"go_project/ms_project/project_grpc/user/login"
+	"go_project/ms_project/project_project/config"
 	"go_project/ms_project/project_project/internal/dao"
 	"go_project/ms_project/project_project/internal/data"
 	"go_project/ms_project/project_project/internal/database"
@@ -265,6 +267,12 @@ func (t *TaskService) SaveTask(ctx context.Context, msg *task.TaskReqMessage) (*
 		return nil
 	})
 	if err != nil {
+		config.SendLog(kk.Error(err, "TaskService.SaveTask", kk.FieldMap{
+			"action":      "create",
+			"memberId":    msg.MemberId,
+			"projectCode": projectCode,
+			"taskName":    msg.Name,
+		}))
 		return nil, err
 	}
 	display := ts.ToTaskDisplay()
@@ -279,6 +287,13 @@ func (t *TaskService) SaveTask(ctx context.Context, msg *task.TaskReqMessage) (*
 	}
 	//添加任务动态
 	createProjectLog(t.projectLogRepo, ts.ProjectCode, ts.Id, ts.Name, ts.AssignTo, "create", "task")
+	config.SendLog(kk.Info("create", "TaskService.SaveTask", kk.FieldMap{
+		"taskId":      ts.Id,
+		"taskName":    ts.Name,
+		"projectCode": ts.ProjectCode,
+		"memberId":    msg.MemberId,
+		"assignTo":    assignTo,
+	}))
 	tm := &task.TaskMessage{}
 	copier.Copy(tm, display)
 	return tm, nil

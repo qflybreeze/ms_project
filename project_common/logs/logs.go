@@ -1,10 +1,6 @@
 package logs
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/natefinch/lumberjack"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -12,6 +8,11 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/natefinch/lumberjack"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var LG *zap.Logger
@@ -65,7 +66,7 @@ func getLogWriter(filename string, maxSize, maxBackup, maxAge int) zapcore.Write
 		MaxBackups: maxBackup,
 		MaxAge:     maxAge,
 	}
-	return zapcore.AddSync(lumberJackLogger)
+	return zapcore.AddSync(lumberJackLogger) //自动日志轮转
 }
 
 // GinLogger 接收gin框架默认的日志

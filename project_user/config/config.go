@@ -106,9 +106,9 @@ func (c *Config) InitZapLog() {
 		DebugFileName: c.viper.GetString("zap.debugFileName"),
 		InfoFileName:  c.viper.GetString("zap.infoFileName"),
 		WarnFileName:  c.viper.GetString("zap.warnFileName"),
-		MaxSize:       c.viper.GetInt("maxSize"),
-		MaxAge:        c.viper.GetInt("maxAge"),
-		MaxBackups:    c.viper.GetInt("maxBackups"),
+		MaxSize:       c.viper.GetInt("zap.maxSize"),
+		MaxAge:        c.viper.GetInt("zap.maxAge"),
+		MaxBackups:    c.viper.GetInt("zap.maxBackups"),
 	}
 	err := logs.InitLogger(lc)
 	if err != nil {

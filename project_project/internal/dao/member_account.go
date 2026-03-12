@@ -3,6 +3,8 @@ package dao
 import (
 	"context"
 	"errors"
+	"fmt"
+	"go.uber.org/zap"
 	"go_project/ms_project/project_project/internal/data"
 	"go_project/ms_project/project_project/internal/database/gorms"
 	"gorm.io/gorm"
@@ -26,13 +28,23 @@ func (m *MemberAccountDao) FindList(ctx context.Context, condition string,
 	page int64, pageSize int64) (list []*data.MemberAccount, total int64, err error) {
 	session := m.conn.Session(ctx)
 	offset := (page - 1) * pageSize
+	fmt.Println("FindList page:", page, "pageSize:", pageSize, "offset:", offset)
 	err = session.Model(&data.MemberAccount{}).
 		Where("organization_code=?", organizationCode).
 		Where(condition).Limit(int(pageSize)).Offset(int(offset)).Find(&list).Error
+	if err != nil {
+		zap.L().Error("MemberAccountDao FindList error", zap.Error(err))
+		return
+	}
 	err = session.Model(&data.MemberAccount{}).
 		Where("organization_code=?", organizationCode).
 		Where(condition).Count(&total).Error
+	fmt.Println(list)
 	return
+}
+
+func (m *MemberAccountDao) Save(ctx context.Context, ma *data.MemberAccount) error {
+	return m.conn.Session(ctx).Create(ma).Error
 }
 
 func NewMemberAccountDao() *MemberAccountDao {

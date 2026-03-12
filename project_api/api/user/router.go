@@ -24,6 +24,7 @@ func (*RouterUser) Route(r *gin.Engine) {
 	r.POST("/project/login/getCaptcha", h.getCaptcha)
 	r.POST("/project/login/register", h.register)
 	r.POST("/project/login", h.login)
+	r.POST("/project/login/refresh", h.refreshToken)
 	org := r.Group("/project/organization")
 	org.Use(midd.ToKenVerify())
 	org.POST("/_getOrgList", h.myOrgList)

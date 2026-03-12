@@ -106,6 +106,27 @@ func (u *HandlerUser) login(c *gin.Context) {
 	c.JSON(http.StatusOK, result.Success(rsp))
 }
 
+func (u *HandlerUser) refreshToken(c *gin.Context) {
+	result := &common.Result{}
+	refreshToken := c.PostForm("refreshToken")
+	if refreshToken == "" {
+		c.JSON(http.StatusOK, result.Fail(http.StatusBadRequest, "refreshToken不能为空"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	ip := GetIp(c)
+	response, err := rpc.LoginServiceClient.TokenRefresh(ctx, &login.LoginMessage{Token: refreshToken, Ip: ip})
+	if err != nil {
+		code, msg := errs.ParseGrpcError(err)
+		c.JSON(http.StatusOK, result.Fail(code, msg))
+		return
+	}
+	rsp := &user.LoginRsp{}
+	_ = copier.Copy(rsp, response)
+	c.JSON(http.StatusOK, result.Success(rsp))
+}
+
 func (u *HandlerUser) myOrgList(c *gin.Context) {
 	result := &common.Result{}
 	memberIdStr, _ := c.Get("memberId")

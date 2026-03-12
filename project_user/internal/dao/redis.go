@@ -35,3 +35,7 @@ func (rc *RedisCache) Get(ctx context.Context, key string) (string, error) {
 	result, err := rc.rdb.Get(ctx, key).Result()
 	return result, err
 }
+
+func (r *RedisCache) TTL(ctx context.Context, key string) (time.Duration, error) {
+	return r.rdb.TTL(ctx, key).Result()
+}

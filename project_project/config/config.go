@@ -3,10 +3,11 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 	"go_project/ms_project/project_common/logs"
 	"log"
 	"os"
+
+	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 
 	"github.com/redis/go-redis/v9"
 
@@ -88,7 +89,7 @@ func InitConfig() *Config {
 		},
 	})
 	if err2 != nil {
-		log.Fatalln("监听nacos配置失败:", err2)
+		log.Printf("监听nacos配置失败:", err2)
 	}
 	conf.viper.SetConfigType("yaml")
 	if configYaml != "" {
@@ -96,6 +97,7 @@ func InitConfig() *Config {
 		if err != nil {
 			log.Fatalln(err)
 		}
+
 		log.Printf("project从nacos读取配置: %s\n", configYaml)
 	} else {
 		workDir, _ := os.Getwd()
@@ -171,10 +173,19 @@ func (c *Config) InitZapLog() {
 func (c *Config) ReadRedisConfig() *redis.Options {
 
 	fmt.Println("Redis Addr:", c.viper.GetString("redis.host")+":"+c.viper.GetString("redis.port"))
+	addr := fmt.Sprintf("%s:%s", c.viper.GetString("redis.host"), c.viper.GetString("redis.port"))
+
 	return &redis.Options{
-		Addr:     c.viper.GetString("redis.host") + ":" + c.viper.GetString("redis.port"),
+		Addr:     addr,
 		Password: c.viper.GetString("redis.password"),
 		DB:       c.viper.GetInt("redis.db"),
+
+		PoolSize:     c.viper.GetInt("redis.pool_size"),
+		MinIdleConns: c.viper.GetInt("redis.min_idle_conns"),
+
+		DialTimeout:  c.viper.GetDuration("redis.dial_timeout"),
+		ReadTimeout:  c.viper.GetDuration("redis.read_timeout"),
+		WriteTimeout: c.viper.GetDuration("redis.write_timeout"),
 	}
 }
 

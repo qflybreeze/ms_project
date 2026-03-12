@@ -2,7 +2,6 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go_project/ms_project/project_common/discovery"
 	"go_project/ms_project/project_common/logs"
 	"go_project/ms_project/project_grpc/account"
@@ -12,6 +11,7 @@ import (
 	"go_project/ms_project/project_grpc/project"
 	"go_project/ms_project/project_grpc/task"
 	"go_project/ms_project/project_project/config"
+	"go_project/ms_project/project_project/internal/interceptor"
 	"go_project/ms_project/project_project/internal/rpc"
 	account_service_v1 "go_project/ms_project/project_project/pkg/service/account_service.v1"
 	auth_service_v1 "go_project/ms_project/project_project/pkg/service/auth.service.v1"
@@ -72,11 +72,7 @@ func RegisterGrpc() *grpc.Server {
 	}
 
 	s := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			otelgrpc.UnaryServerInterceptor(),
-			//TODO 调用链路
-			//interceptor.CacheClient.CacheInterceptor(),
-		),
+		interceptor.CacheClient.Cache(),
 	)
 
 	c.RegisterFunc(s)
@@ -96,14 +92,17 @@ func RegisterGrpc() *grpc.Server {
 }
 
 func RegisterEtcdServer() {
+	// 向 gRPC 框架注册一个名字解析器
 	etcdRegister := discovery.NewResolver(config.C.EtcdConfig.Addrs, logs.LG)
 	resolver.Register(etcdRegister)
+
 	info := discovery.Server{
 		Name:    config.C.GC.Name,
 		Addr:    config.C.GC.Addr,
 		Version: config.C.GC.Version,
 		Weight:  config.C.GC.Weight,
 	}
+	//向 etcd 注册服务
 	r := discovery.NewRegister(config.C.EtcdConfig.Addrs, logs.LG)
 	_, err := r.Register(info, 2)
 	if err != nil {

@@ -2,35 +2,27 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-contrib/pprof"
-	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	_ "go_project/ms_project/project_api/api"
 	"go_project/ms_project/project_api/api/midd"
 	"go_project/ms_project/project_api/config"
 	"go_project/ms_project/project_api/router"
-	"go_project/ms_project/project_api/tracing"
 	srv "go_project/ms_project/project_common"
 	"go_project/ms_project/project_common/encrypts"
-	"log"
 	"net/http"
+
+	"github.com/gin-contrib/pprof"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	fmt.Println(encrypts.DecryptNoErr("e08c"))
 	r := gin.Default()
 
-	tp, tpErr := tracing.JaegerTraceProvider()
-	if tpErr != nil {
-		log.Fatal(tpErr)
-	}
-	otel.SetTracerProvider(tp)
-	//把全局的文本型上下文传播器设置为一个组合传播器
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	r.Use(midd.RequestLog())
-	r.Use(otelgin.Middleware("project_api"))
+	// 全局限流：整个网关每秒最多处理 200 个请求，允许突发 50 个
+	r.Use(midd.GlobalRateLimit(200, 50))
+	// 按 IP 限流：每个 IP 每秒最多 20 个请求，允许突发 10 个
+	r.Use(midd.PerIPRateLimit(20, 10))
 
 	r.StaticFS("/upload", http.Dir("upload"))
 	//设置路由

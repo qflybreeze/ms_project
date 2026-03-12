@@ -27,6 +27,16 @@ func (p *ProjectDao) FindProjectById(ctx context.Context, projectCode int64) (pj
 	return
 }
 
+// FindProjectByIdFromMaster 强制走主库读取项目，用于写后立即读的场景（如创建项目后立即返回详情）
+// 避免主从复制延迟导致从库查不到刚写入的数据
+func (p *ProjectDao) FindProjectByIdFromMaster(ctx context.Context, projectCode int64) (pj *data.Project, err error) {
+	err = p.conn.SessionWithMaster(ctx).Where("id = ?", projectCode).Find(&pj).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	return
+}
+
 func (p *ProjectDao) FindProjectMemberByPid(ctx context.Context, projectCode int64) (list []*data.ProjectMember, total int64, err error) {
 	session := p.conn.Session(ctx)
 	err = session.Model(&data.ProjectMember{}).Where("project_code = ?", projectCode).Find(&list).Error

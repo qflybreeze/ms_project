@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -13,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Register for grpc server
+// 服务注册
 type Register struct {
 	EtcdAddrs   []string
 	DialTimeout int
@@ -28,7 +26,6 @@ type Register struct {
 	logger  *zap.Logger      // 日志
 }
 
-// NewRegister create a register base on etcd
 func NewRegister(etcdAddrs []string, logger *zap.Logger) *Register {
 	return &Register{
 		EtcdAddrs:   etcdAddrs,
@@ -73,12 +70,13 @@ func (r *Register) Stop() {
 func (r *Register) register() error {
 	leaseCtx, cancel := context.WithTimeout(context.Background(), time.Duration(r.DialTimeout)*time.Second)
 	defer cancel()
-
+	//申请租约
 	leaseResp, err := r.cli.Grant(leaseCtx, r.srvTTL)
 	if err != nil {
 		return err
 	}
 	r.leasesID = leaseResp.ID
+	//自动续约
 	if r.keepAliveCh, err = r.cli.KeepAlive(context.Background(), leaseResp.ID); err != nil {
 		return err
 	}
@@ -87,6 +85,7 @@ func (r *Register) register() error {
 	if err != nil {
 		return err
 	}
+	//注册节点
 	_, err = r.cli.Put(context.Background(), BuildRegPath(r.srvInfo), string(data), clientv3.WithLease(r.leasesID))
 	return err
 }
@@ -112,6 +111,7 @@ func (r *Register) keepAlive() {
 			}
 			return
 		case res := <-r.keepAliveCh:
+			// Lease 过期 / 网络断了 / etcd 集群不可达
 			if res == nil {
 				if err := r.register(); err != nil {
 					r.logger.Error("register failed", zap.Error(err))
@@ -125,36 +125,6 @@ func (r *Register) keepAlive() {
 			}
 		}
 	}
-}
-
-// UpdateHandler return http handler
-func (r *Register) UpdateHandler() http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		wi := req.URL.Query().Get("weight")
-		weight, err := strconv.Atoi(wi)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
-			return
-		}
-
-		var update = func() error {
-			r.srvInfo.Weight = int64(weight)
-			data, err := json.Marshal(r.srvInfo)
-			if err != nil {
-				return err
-			}
-			_, err = r.cli.Put(context.Background(), BuildRegPath(r.srvInfo), string(data), clientv3.WithLease(r.leasesID))
-			return err
-		}
-
-		if err := update(); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		w.Write([]byte("update server weight success"))
-	})
 }
 
 func (r *Register) GetServerInfo() (Server, error) {

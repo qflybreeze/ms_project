@@ -7,13 +7,29 @@ import (
 	"encoding/hex"
 	"io"
 	"strconv"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
+// Md5 仅用于缓存 key 生成等非安全场景，不用于密码存储
 func Md5(str string) string {
 	hash := md5.New()
 	_, _ = io.WriteString(hash, str)
-	//将哈希值转换为十六进制字符串
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// HashPassword 使用 bcrypt 对密码进行哈希，用于注册时存储密码
+// bcrypt 内置随机盐 + 自适应 cost，无需额外管理盐值
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+// VerifyPassword 验证明文密码是否与 bcrypt 哈希匹配，用于登录校验
+// 返回 true 表示密码正确
+func VerifyPassword(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 var commonIV = []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}

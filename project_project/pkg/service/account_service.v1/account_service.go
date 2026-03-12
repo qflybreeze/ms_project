@@ -40,6 +40,7 @@ func (a *AccountService) Account(c context.Context, msg *account.AccountReqMessa
 	if err != nil {
 		return nil, errs.GrpcError(err)
 	}
+	//TODO 找人找错了表,AccountResponse应该有list信息
 	authList, err := a.projectAuthDomain.AuthList(encrypts.DecryptNoErr(msg.OrganizationCode))
 	if err != nil {
 		return nil, errs.GrpcError(err)

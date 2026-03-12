@@ -2,13 +2,13 @@ package project_service_v1
 
 import (
 	"context"
-	"github.com/jinzhu/copier"
-	"go.uber.org/zap"
 	"go_project/ms_project/project_common/encrypts"
 	"go_project/ms_project/project_common/errs"
+	"go_project/ms_project/project_common/kk"
 	"go_project/ms_project/project_common/tms"
 	"go_project/ms_project/project_grpc/project"
 	"go_project/ms_project/project_grpc/user/login"
+	"go_project/ms_project/project_project/config"
 	"go_project/ms_project/project_project/internal/dao"
 	"go_project/ms_project/project_project/internal/data"
 	"go_project/ms_project/project_project/internal/database"
@@ -19,6 +19,9 @@ import (
 	"go_project/ms_project/project_project/pkg/model"
 	"strconv"
 	"time"
+
+	"github.com/jinzhu/copier"
+	"go.uber.org/zap"
 )
 
 type ProjectService struct {
@@ -231,20 +234,39 @@ func (ps *ProjectService) SaveProject(ctxs context.Context, msg *project.Project
 	})
 	if err != nil {
 		zap.L().Error("SaveProject transaction error", zap.Error(err))
+		config.SendLog(kk.Error(err, "ProjectService.SaveProject", kk.FieldMap{
+			"action":           "create",
+			"memberId":         msg.MemberId,
+			"organizationCode": organizationCode,
+		}))
 		return nil, err
 	}
-	code, _ := encrypts.EncryptInt64(pr.Id, model.AESKey)
+	config.SendLog(kk.Info("create", "ProjectService.SaveProject", kk.FieldMap{
+		"projectId":        pr.Id,
+		"projectName":      pr.Name,
+		"memberId":         msg.MemberId,
+		"organizationCode": organizationCode,
+		"templateCode":     templateCode,
+	}))
+	// 写后立即读
+	// 避免主从复制延迟导致后续请求从从库读不到刚创建的项目
+	saved, readErr := ps.projectRepo.FindProjectByIdFromMaster(ctx, pr.Id)
+	if readErr != nil || saved == nil {
+		zap.L().Warn("SaveProject read-after-write from master failed, using local data",
+			zap.Int64("projectId", pr.Id), zap.Error(readErr))
+		// 主库回读失败时降级使用事务中的内存对象，不阻塞主流程
+		saved = pr
+	}
+	code, _ := encrypts.EncryptInt64(saved.Id, model.AESKey)
 	rsp := &project.SaveProjectMessage{
-		Id:               pr.Id,
+		Id:               saved.Id,
 		Code:             code,
 		OrganizationCode: organizationCodeStr,
-		Name:             pr.Name,
-		Cover:            pr.Cover,
-		CreateTime:       tms.FormatByMill(pr.CreateTime),
-		TaskBoardTheme:   pr.TaskBoardTheme,
+		Name:             saved.Name,
+		Cover:            saved.Cover,
+		CreateTime:       tms.FormatByMill(saved.CreateTime),
+		TaskBoardTheme:   saved.TaskBoardTheme,
 	}
-	//fmt.Println("pr:", pr.Id)
-	//fmt.Println("rep:", rsp.Id)
 	return rsp, nil
 }
 
@@ -272,7 +294,6 @@ func (ps *ProjectService) FindProjectDetail(ctx context.Context, msg *project.Pr
 		zap.L().Error("FindProjectDetail rpc FindMemInfoById error", zap.Error(err))
 		return nil, err
 	}
-	//TODO
 	isCollect, err := ps.projectRepo.FindCollectByPidAndMemId(c, projectCode, memberId)
 	if err != nil {
 		zap.L().Error("FindProjectDetail db FindCollectByPidAndMemId error", zap.Error(err))

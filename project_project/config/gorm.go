@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"go_project/ms_project/project_project/internal/database/gorms"
+	"time"
+
+	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -23,10 +25,10 @@ func (c *Config) ReConnMysql() {
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", username, password, host, port, Dbname)
 		var err error
 		_db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger: logger.Default.LogMode(logger.Info), //打印出所有执行的 SQL 语句
 		})
 		if err != nil {
-			zap.L().Error("连接mysql数据库失败", zap.Error(err)) //Fatal调试时设为Error以便配置恢复后正常运行
+			zap.L().Error("连接mysql数据库失败", zap.Error(err))
 			return
 		}
 		replicas := []gorm.Dialector{}
@@ -47,10 +49,12 @@ func (c *Config) ReConnMysql() {
 				DSN: dsn,
 			})},
 			Replicas: replicas,
-			Policy:   dbresolver.RandomPolicy{},
+			Policy:   dbresolver.RandomPolicy{}, // 随机选择从库
 		}).
 			SetMaxIdleConns(10).
-			SetMaxOpenConns(200))
+			SetMaxOpenConns(200).
+			SetConnMaxLifetime(5 * time.Minute). // 连接最大存活 5 分钟
+			SetConnMaxIdleTime(3 * time.Minute)) // 空闲超 3 分钟回收
 		if err != nil {
 			zap.L().Error("mysql读写分离配置失败", zap.Error(err))
 		}

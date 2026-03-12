@@ -3,6 +3,7 @@ package gorms
 import (
 	"context"
 	"gorm.io/gorm"
+	"gorm.io/plugin/dbresolver"
 )
 
 var _db *gorm.DB
@@ -94,6 +95,11 @@ func NewTran() *GormConn {
 }
 func (g *GormConn) Session(ctx context.Context) *gorm.DB {
 	return g.db.Session(&gorm.Session{Context: ctx})
+}
+
+// SessionWithMaster 强制走主库读，用于写后立即读的场景，避免主从延迟导致读不到最新数据
+func (g *GormConn) SessionWithMaster(ctx context.Context) *gorm.DB {
+	return g.db.Session(&gorm.Session{Context: ctx}).Clauses(dbresolver.Write)
 }
 
 func (g *GormConn) Rollback() {

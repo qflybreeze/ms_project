@@ -2,13 +2,14 @@ package midd
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
 	"go_project/ms_project/project_api/api/rpc"
 	common "go_project/ms_project/project_common"
 	"go_project/ms_project/project_common/errs"
 	"go_project/ms_project/project_grpc/user/login"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetIp(c *gin.Context) string {
@@ -28,7 +29,7 @@ func ToKenVerify() func(ctx *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		ip := GetIp(c)
-		//先查询node表，若不使用登录控制的接口，则不进行token验证
+
 		response, err := rpc.LoginServiceClient.TokenVerify(ctx, &login.LoginMessage{Token: token, Ip: ip})
 		if err != nil {
 			code, msg := errs.ParseGrpcError(err)

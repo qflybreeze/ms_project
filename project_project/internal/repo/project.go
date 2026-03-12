@@ -19,6 +19,8 @@ type ProjectRepo interface {
 	UpdateProject(ctx context.Context, proj *data.Project) error
 	FindProjectMemberByPid(ctx context.Context, projectCode int64) (list []*data.ProjectMember, total int64, err error)
 	FindProjectById(ctx context.Context, projectCode int64) (pj *data.Project, err error)
+	// FindProjectByIdFromMaster 强制走主库，用于写后立即读场景
+	FindProjectByIdFromMaster(ctx context.Context, projectCode int64) (pj *data.Project, err error)
 	FindProjectByIds(ctx context.Context, pids []int64) (list []*data.Project, err error)
 }
 

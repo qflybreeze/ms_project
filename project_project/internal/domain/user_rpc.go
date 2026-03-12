@@ -33,3 +33,9 @@ func (d *UserRpcDomain) MemberInfo(ctx context.Context, memberCode int64) (*logi
 	memberMessage, err := d.lc.FindMemInfoById(c, &login.UserMessage{MemId: memberCode})
 	return memberMessage, err
 }
+
+func (d *UserRpcDomain) MyOrgList(ctx context.Context, memberId int64) (*login.OrgListResponse, error) {
+	c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return d.lc.MyOrgList(c, &login.UserMessage{MemId: memberId})
+}

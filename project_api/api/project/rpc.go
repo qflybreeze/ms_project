@@ -1,7 +1,7 @@
 package project
 
 import (
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go_project/ms_project/project_api/breaker"
 	"go_project/ms_project/project_api/config"
 	"go_project/ms_project/project_common/discovery"
 	"go_project/ms_project/project_common/logs"
@@ -30,7 +30,7 @@ func InitRpcProjectClient() {
 
 	conn, err := grpc.Dial("etcd:///project",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithUnaryInterceptor(breaker.NewCircuitBreaker("project-service")),
 	)
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)

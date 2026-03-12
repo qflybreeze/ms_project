@@ -92,6 +92,7 @@ service LoginService {
   rpc Register(RegisterMessage) returns (RegisterResponse){}
   rpc Login(LoginMessage) returns (LoginResponse) {}
   rpc TokenVerify(LoginMessage) returns (LoginResponse) {}
+  rpc TokenRefresh(LoginMessage) returns (LoginResponse) {}
   rpc MyOrgList(UserMessage) returns (OrgListResponse) {}
   rpc FindMemInfoById(UserMessage) returns (MemberMessage) {}
   rpc FindMemInfoByIds(UserMessage) returns (MemberMessageList) {}

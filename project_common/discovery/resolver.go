@@ -2,18 +2,19 @@ package discovery
 
 import (
 	"context"
+	"time"
+
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/resolver"
-	"time"
 )
 
 const (
 	schema = "etcd"
 )
 
-// Resolver for grpc client
+// 服务发现
 type Resolver struct {
 	schema      string
 	EtcdAddrs   []string
@@ -42,21 +43,22 @@ func (r *Resolver) Scheme() string {
 	return r.schema
 }
 
-// Build creates a new resolver.Resolver for the given target
 func (r *Resolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
+	//设置客户端连接
 	r.cc = cc
 
 	r.keyPrifix = BuildPrefix(Server{Name: target.Endpoint()})
+
 	if _, err := r.start(); err != nil {
 		return nil, err
 	}
 	return r, nil
 }
 
-// ResolveNow resolver.Resolver interface
-func (r *Resolver) ResolveNow(o resolver.ResolveNowOptions) {}
+func (r *Resolver) ResolveNow(o resolver.ResolveNowOptions) {
+	// 已经有 Watch 实时推送和定时sync不需要在这里额外触发解析
+}
 
-// Close resolver.Resolver interface
 func (r *Resolver) Close() {
 	r.closeCh <- struct{}{}
 }
@@ -83,7 +85,6 @@ func (r *Resolver) start() (chan<- struct{}, error) {
 	return r.closeCh, nil
 }
 
-// watch update events
 func (r *Resolver) watch() {
 	ticker := time.NewTicker(time.Minute)
 	r.watchCh = r.cli.Watch(context.Background(), r.keyPrifix, clientv3.WithPrefix())
@@ -116,8 +117,29 @@ func (r *Resolver) update(events []*clientv3.Event) {
 				continue
 			}
 			addr := resolver.Address{Addr: info.Addr, Metadata: info.Weight}
-			if !Exist(r.srvAddrsList, addr) {
+
+			changed := false // 标志位
+			found := false
+			for i := range r.srvAddrsList {
+				if r.srvAddrsList[i].Addr == addr.Addr {
+					// 地址已存在，检查元数据是否变化
+					if r.srvAddrsList[i].Metadata != addr.Metadata {
+						r.srvAddrsList[i].Metadata = addr.Metadata
+						changed = true
+					}
+					found = true
+					break
+				}
+			}
+
+			// 如果是新地址，则添加
+			if !found {
 				r.srvAddrsList = append(r.srvAddrsList, addr)
+				changed = true
+			}
+
+			// 列表发生变化时才通知 gRPC
+			if changed {
 				r.cc.UpdateState(resolver.State{Addresses: r.srvAddrsList})
 			}
 		case mvccpb.DELETE:

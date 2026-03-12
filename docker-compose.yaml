@@ -12,7 +12,7 @@ services:
       MYSQL_DATABASE: msproject
     volumes:
       - ${MYSQL_DIR}/data:/var/lib/mysql
-      - ${MYSQL_DIR}/conf:/etc/mysql/conf.d/
+      - ${MYSQL_DIR}/conf/master:/etc/mysql/conf.d/
       - ${MYSQL_DIR}/logs:/logs
     command:
       --default-authentication-plugin=mysql_native_password
@@ -20,6 +20,37 @@ services:
       --collation-server=utf8mb4_general_ci
       --explicit_defaults_for_timestamp=true
       --lower_case_table_names=1
+    networks:
+      default:
+        # 固定主库IP
+        ipv4_address: 172.28.0.5
+
+  mysql-slave:
+    container_name: mysql8-slave
+    image: mysql:${MYSQL_VERSION}
+    restart: always
+    ports:
+      - 3310:3306
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - ${MYSQL_DIR}/data_slave:/var/lib/mysql
+      - ${MYSQL_DIR}/conf/slave:/etc/mysql/conf.d/
+      - ${MYSQL_DIR}/logs_slave:/logs
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --explicit_defaults_for_timestamp=true
+      - --lower_case_table_names=1
+      - --server-id=2                   # 从库唯一标识
+      - --relay-log=mysql-relay-bin     # 中继日志
+      - --read-only=1                   # 只读模式
+      - --replicate-do-db=msproject     # 只复制指定库
+    networks:
+      default:
+        ipv4_address: 172.28.0.6
   Redis:
     container_name: redis6
     image: redis:${REDIS_VERSION}
@@ -79,28 +110,28 @@ services:
     networks:
       default:
         ipv4_address: 172.28.0.10  # 我们手动指定一个 IP，比如 .10
-  Jaeger:
-    container_name: jaeger
-    image: jaegertracing/all-in-one:1.41
-    restart: always
-    environment:
-      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
-      - SPAN_STORAGE_TYPE=badger
-      - BADGER_EPHEMERAL=${BADGER_EPHEMERAL}
-      - BADGER_DIRECTORY_VALUE=/badger/data
-      - BADGER_DIRECTORY_KEY=/badger/key
-    privileged: true
-    volumes:
-      - ${JAEGER_DIR}:/badger
-    ports:
-      - 5775:5775/udp
-      - 6831:6831/udp
-      - 6832:6832/udp
-      - 5778:5778
-      - 16686:16686
-      - 14268:14268
-      - 14269:14269
-      - 9411:9411
+#  Jaeger:
+#    container_name: jaeger
+#    image: jaegertracing/all-in-one:1.41
+#    restart: always
+#    environment:
+#      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+#      - SPAN_STORAGE_TYPE=badger
+#      - BADGER_EPHEMERAL=${BADGER_EPHEMERAL}
+#      - BADGER_DIRECTORY_VALUE=/badger/data
+#      - BADGER_DIRECTORY_KEY=/badger/key
+#    privileged: true
+#    volumes:
+#      - ${JAEGER_DIR}:/badger
+#    ports:
+#      - 5775:5775/udp
+#      - 6831:6831/udp
+#      - 6832:6832/udp
+#      - 5778:5778
+#      - 16686:16686
+#      - 14268:14268
+#      - 14269:14269
+#      - 9411:9411
   kafdrop:
     container_name: kafdrop
     image: obsidiandynamics/kafdrop:3.31.0

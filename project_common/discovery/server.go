@@ -54,7 +54,6 @@ func Exist(l []resolver.Address, addr resolver.Address) bool {
 	return false
 }
 
-// Remove helper function
 func Remove(s []resolver.Address, addr resolver.Address) ([]resolver.Address, bool) {
 	for i := range s {
 		if s[i].Addr == addr.Addr {

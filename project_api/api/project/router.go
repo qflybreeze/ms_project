@@ -1,10 +1,11 @@
 package project
 
 import (
-	"github.com/gin-gonic/gin"
 	"go_project/ms_project/project_api/api/midd"
 	"go_project/ms_project/project_api/router"
 	"log"
+
+	"github.com/gin-gonic/gin"
 )
 
 type RouterProject struct {
@@ -21,9 +22,9 @@ func (*RouterProject) Route(r *gin.Engine) {
 	InitRpcProjectClient()
 	h := New()
 	group := r.Group("/project")
-	group.Use(midd.ToKenVerify())
-	group.Use(Auth())
-	group.Use(ProjectAuth())
+	group.Use(midd.ToKenVerify()) // 第 1 层：你是谁
+	group.Use(Auth())             // 第 2 层：你能做什么
+	group.Use(ProjectAuth())      // 第 3 层：你能操作哪个项目
 	group.POST("/index", h.Index)
 	group.POST("/project/selfList", h.myProjectList)
 	group.POST("/project", h.myProjectList)

@@ -5,6 +5,7 @@ import (
 	"go_project/ms_project/project_user/internal/data/member"
 	"go_project/ms_project/project_user/internal/database"
 	"go_project/ms_project/project_user/internal/database/gorms"
+
 	"gorm.io/gorm"
 )
 
@@ -12,8 +13,16 @@ type MemberDao struct {
 	conn *gorms.GormConn
 }
 
+func (m *MemberDao) FindAllMemberIds(ctx context.Context) ([]int64, error) {
+	var ids []int64
+	err := m.conn.Session(ctx).Model(&member.Member{}).
+		Select("id").
+		Where("status = ?", 1). // 只查有效用户
+		Pluck("id", &ids).Error
+	return ids, err
+}
+
 func (m *MemberDao) FindMemberByIds(background context.Context, ids []int64) (list []*member.Member, err error) {
-	//TODO
 	if len(ids) <= 0 {
 		return nil, nil
 	}
@@ -26,9 +35,10 @@ func (m *MemberDao) FindMemberById(ctx context.Context, id int64) (mem *member.M
 	return
 }
 
-func (m *MemberDao) FindMember(ctx context.Context, account string, pwd string) (*member.Member, error) {
+// 通过账号或邮箱查询用户，支持用户名/邮箱登录
+func (m *MemberDao) FindMemberByAccount(ctx context.Context, account string) (*member.Member, error) {
 	var mem *member.Member
-	err := m.conn.Session(ctx).Where("account=? and password=?", account, pwd).First(&mem).Error
+	err := m.conn.Session(ctx).Where("account=? OR email=?", account, account).First(&mem).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	}
@@ -57,6 +67,10 @@ func (m *MemberDao) GetMemberByAccount(ctx context.Context, account string) (boo
 	var count int64
 	err := m.conn.Session(ctx).Model(&member.Member{}).Where("account=?", account).Count(&count).Error
 	return count > 0, err
+}
+
+func (m *MemberDao) UpdateMemberPassword(ctx context.Context, id int64, newHash string) error {
+	return m.conn.Session(ctx).Model(&member.Member{}).Where("id=?", id).Update("password", newHash).Error
 }
 
 func (m *MemberDao) GetMemberByMobile(ctx context.Context, mobile string) (bool, error) {
